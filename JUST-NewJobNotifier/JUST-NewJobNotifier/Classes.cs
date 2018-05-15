@@ -12,7 +12,7 @@ namespace JUST.NewJobNotifier.Classes
             EmployeeId = string.Empty;
             Name = string.Empty;
             EmailAddress = string.Empty;
-            NewJobs = new List<NewJob>();
+            NewJobs = new List<JobInformation>();
         }
 
         public Employee(string employeeId, string name, string emailAddress)
@@ -20,20 +20,20 @@ namespace JUST.NewJobNotifier.Classes
             EmployeeId = employeeId;
             Name = name;
             EmailAddress = emailAddress;
-            NewJobs = new List<NewJob>();
+            NewJobs = new List<JobInformation>();
         }
 
         public void AddJobToNotify(string job, string jobDescription, string cusNum, string customerName)
         {
-            NewJobs.Add(new NewJob() {JobNumber = job, JobDescription = jobDescription, CustomerNumber = cusNum, CustomerName = customerName});
+            NewJobs.Add(new JobInformation() {JobNumber = job, JobName = jobDescription, CustomerNumber = cusNum, CustomerName = customerName});
         }
 
         public string EmployeeId { get; set; }
         public string Name { get; set; }
         public string EmailAddress { get; set; } 
-        public List<NewJob> NewJobs { get; }
+        public List<JobInformation> NewJobs { get; }
     }
-
+    /*
     public class NewJob
     {
         public NewJob()
@@ -49,6 +49,7 @@ namespace JUST.NewJobNotifier.Classes
         public string CustomerNumber { get; set; }
         public string CustomerName { get; set; }
     }
+    */
 
     public class PurchaseOrderItem
     {
@@ -74,7 +75,6 @@ namespace JUST.NewJobNotifier.Classes
         public string UnitPrice { get; set; }
         public long Received { get; set; }
     }
-
 
     public class JobInformation
     {

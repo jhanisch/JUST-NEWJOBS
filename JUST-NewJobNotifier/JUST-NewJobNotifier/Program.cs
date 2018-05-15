@@ -130,7 +130,7 @@ namespace JUST.NewJobNotifier
                 errorMessage.Append(String.Format("{0} is not a valid Mode.  Valid modes are 'debug', 'live' and 'monitor'", Mode));
             }
 
-            if (Mode == monitor)
+            if ((Mode == monitor) || (Mode == debug))
             {
                 log.Info("checking Executive Email Address List");
                 if (MonitorEmailAddresses == null || MonitorEmailAddresses.Length == 0)
@@ -197,6 +197,7 @@ namespace JUST.NewJobNotifier
                     var primaryContactColumn = reader.GetOrdinal("primaryContact");
                     var secondaryContactColumn = reader.GetOrdinal("secondaryContact");
                     var notifiedColumn = reader.GetOrdinal("notified");
+                    var executiveNewJobNotifications = new List<JobInformation>();
 
                     while (reader.Read())
                     {
@@ -209,7 +210,7 @@ namespace JUST.NewJobNotifier
                         var primaryContactEmployee = GetEmployeeInformation(EmployeeEmailAddresses, primaryContact);
                         var secondaryContactEmployee = secondaryContact.Length > 0 ? GetEmployeeInformation(EmployeeEmailAddresses, secondaryContact) : new Employee();
 
-                        log.Info("[ProcessNewJobsData] ----------------- Found New Job Number " + "jobnumber" + " -------------------");
+                        log.Info("[ProcessNewJobsData] ----------------- Found New Job Number " + jobNumber + " -------------------");
                         log.Info("customerNumber: " + customerNumber);
                         log.Info("jobNumber: " + jobNumber);
                         log.Info("jobName: " + jobName);
@@ -226,59 +227,69 @@ namespace JUST.NewJobNotifier
                             secondaryContactEmployee.AddJobToNotify(jobNumber, jobName, customerNumber, customerName);
                         }
 
-
-
-//                        var emailBody = FormatEmailBody(receivedOnDate, purchaseOrderNumber, receivedBy, bin, buyerEmployee.Name, vendor, job, notes);
-
-                        //                        log.Info("[MONITOR] email message: " + emailBody);
-                        if ((Mode == live) || (Mode == monitor))
+                        if ((Mode == monitor) || (Mode == debug))
                         {
-                            log.Info("[ProcessNewJobsData] Mode: " + Mode.ToString() + ", cusnum: " + customerNumber + ", job number:" + jobNumber);
-
-/*                            NotifyEmployee(notifiedlist, purchaseOrderNumber, buyerEmployee.EmailAddress, receivedBy, bin, emailSubject, emailBody);
-                            if (projectManagerEmployee.EmailAddress.Length > 0 && buyerEmployee.EmailAddress != projectManagerEmployee.EmailAddress)
-                            {
-                                NotifyEmployee(notifiedlist, purchaseOrderNumber, projectManagerEmployee.EmailAddress, receivedBy, bin, emailSubject, emailBody);
-                            }
-*/
+                            executiveNewJobNotifications.Add(new JobInformation() {JobNumber = jobNumber, JobName = jobName, CustomerNumber = customerNumber, CustomerName = customerName});
                         }
-                        else
-                        {
-                            log.Info("[ProcessNewJobsData] Debug: Notification email would have been sent for new job : " + jobNumber);
-                        }
-/*
-                        if (((Mode == monitor) || (Mode == debug)) &&
-                            (MonitorEmailAddresses != null && MonitorEmailAddresses.Length > 0))
-                        {
-                            foreach (var emailAddress in MonitorEmailAddresses)
-                            {
+                    }
 
-                                if (sendEmail(emailAddress, emailSubject, emailBody))
+                    if ((Mode == live) || (Mode == monitor))
+                    {
+                        foreach (var emp in EmployeeEmailAddresses)
+                        {
+                            if (emp.NewJobs.Count > 0)
+                            {
+                                var message = MessageBodyFormat;
+
+                                log.Info("Notify " + emp.Name + " of new jobs: ");
+                                foreach (var job in emp.NewJobs)
                                 {
-                                    if (!notifiedlist.Contains(purchaseOrderNumber))
+                                    message += string.Format(messageBodyTableItem, job.CustomerNumber, job.CustomerName, job.JobNumber, job.JobName);
+                                }
+
+                                message += messageBodyTail;
+
+                                if (sendEmail(emp.EmailAddress, EmailSubject, message))
+                                {
+                                    foreach (var job in emp.NewJobs)
                                     {
-                                        notifiedlist.Add(purchaseOrderNumber);
+                                        if (!notifiedlist.Contains(job))
+                                        {
+                                            notifiedlist.Add(job.JobNumber);
+                                        }
+                                    }
+                                }
+                                log.Info(message);
+                            }
+                        }
+                    }
+
+                    log.Info(" Executive Email Block ");
+                    log.Info(" ExecutiveNewJobNotifications: " + executiveNewJobNotifications.Count());
+                    if (((Mode == monitor) || (Mode == debug)) && (executiveNewJobNotifications.Count() > 0))
+                    {
+                        var excutiveMessage = MessageBodyFormat;
+                        foreach (var job in executiveNewJobNotifications)
+                        {
+                            log.Info(" Executive Email Notification, jobNumber: " + job);
+                            excutiveMessage += string.Format(messageBodyTableItem, job.CustomerNumber, job.CustomerName, job.JobNumber, job.JobName);
+                        }
+
+                        excutiveMessage += messageBodyTail;
+
+                        foreach(var executive in MonitorEmailAddresses)
+                        {
+                            if (sendEmail(executive, EmailSubject, excutiveMessage))
+                            {
+                                foreach (var job in executiveNewJobNotifications)
+                                {
+                                    if (!notifiedlist.Contains(job))
+                                    {
+                                        log.Info(" job '" + job + "' not found in notifiedList");
+                                        notifiedlist.Add(job.JobNumber);
                                     }
                                 }
                             }
-                        }
-*/
-                    }
-
-                    foreach(var emp in EmployeeEmailAddresses)
-                    {
-                        if (emp.NewJobs.Count > 0)
-                        {
-                            var message = MessageBodyFormat;
-
-                            log.Info("Notify " + emp.Name + " of new jobs: ");
-                            foreach (var job in emp.NewJobs)
-                            {
-                                message += string.Format(messageBodyTableItem, job.CustomerNumber, job.CustomerName, job.JobNumber, job.JobDescription);
-                            }
-
-                            message += messageBodyTail;
-                            log.Info(message);
                         }
                     }
                 }
@@ -286,10 +297,11 @@ namespace JUST.NewJobNotifier
                 {
                     log.Error("[ProcessNewJobsData] Reader Error: " + x.Message);
                 }
-/*
+
                 foreach (var jobNum in notifiedlist)
                 {
-                    try
+                    log.Info("update job " + jobNum + " as notified");
+/*                    try
                     {
                         var updateCommand = string.Format("update jcjob set \"user_10\" = 1 where jcjob.jobnum = '{0}'", jobNum);
                         cmd = new OdbcCommand(updateCommand, cn);
@@ -299,8 +311,9 @@ namespace JUST.NewJobNotifier
                     {
                         log.Error(String.Format("[ProcessNewJobsData] Error updating Job Number {0} to be Notified: {1}", jobNum, x.Message));
                     }
+                    */
                 }
-*/
+
                 reader.Close();
                 cn.Close();
             }
@@ -400,7 +413,8 @@ namespace JUST.NewJobNotifier
             }
 
             log.Info("  [sendEmail] Sending Email to: " + toEmailAddress);
-
+            log.Info("  [sendEmail] EmailMessage: " + emailBody);
+            return true;
             try
             {
                 using (MailMessage mail = new MailMessage())
