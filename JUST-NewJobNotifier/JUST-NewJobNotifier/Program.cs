@@ -170,13 +170,12 @@ namespace JUST.NewJobNotifier
                 //customer
                 // user_1 = primary contact
                 // user_2 = secondary contact
-                //                var NewJobsQuery = "Select jcjob.cusnum, jcjob.jobnum, jcjob.name as jobName, customer.name as customerName, jcjob.user_1, jcjob.user_2, jcjob.user_3, jcjob.user_4, jcjob.user_5, jcjob.user_6, jcjob.user_7, jcjob.user_8, jcjob.user_9, jcjob.user_10, customer.user_1 as primaryContact, customer.user_2 as secondaryContact from jcjob inner join customer on jcjob.cusnum = customer.cusnum where jcjob.jobnum = '1303-028' and jcjob.user_10 = 0";
 //                var NewJobsQuery = "Select jcjob.cusnum, jcjob.jobnum, jcjob.name as jobName, customer.name as customerName, jcjob.user_10 as notified, customer.user_1 as primaryContact, customer.user_2 as secondaryContact from jcjob inner join customer on jcjob.cusnum = customer.cusnum where jcjob.jobnum = '12-3031' order by customer.user_1 asc";
-                var NewJobsQuery = "Select jcjob.cusnum, jcjob.jobnum, jcjob.name as jobName, customer.name as customerName, jcjob.user_10 as notified, customer.user_1 as primaryContact, customer.user_2 as secondaryContact from jcjob inner join customer on jcjob.cusnum = customer.cusnum order by customer.user_1 asc";
+                var NewJobsQuery = "Select jcjob.cusnum, jcjob.jobnum, jcjob.name as jobName, customer.name as customerName, jcjob.user_10 as notified, customer.user_1 as primaryContact, customer.user_2 as secondaryContact from jcjob inner join customer on jcjob.cusnum = customer.cusnum where jcjob.user_10 = 0 order by customer.user_1 asc";
 
                 OdbcConnectionStringBuilder just = new OdbcConnectionStringBuilder();
                 just.Driver = "ComputerEase";
-                just.Add("Dsn", "Company 4");
+                just.Add("Dsn", "Company 0");
                 just.Add("Uid", Uid);
                 just.Add("Pwd", Pwd);
 
@@ -211,13 +210,13 @@ namespace JUST.NewJobNotifier
                         var secondaryContactEmployee = secondaryContact.Length > 0 ? GetEmployeeInformation(EmployeeEmailAddresses, secondaryContact) : new Employee();
 
                         log.Info("[ProcessNewJobsData] ----------------- Found New Job Number " + jobNumber + " -------------------");
-                        log.Info("customerNumber: " + customerNumber);
+/*                        log.Info("customerNumber: " + customerNumber);
                         log.Info("jobNumber: " + jobNumber);
                         log.Info("jobName: " + jobName);
                         log.Info("primaryContact: " + primaryContact + ", " + primaryContactEmployee.EmailAddress);
                         log.Info("secondaryContact: " + secondaryContact);
                         log.Info("customerName: " + customerName);
-                        log.Info("notified: " + reader.GetInt16(notifiedColumn).ToString());
+                        log.Info("notified: " + reader.GetInt16(notifiedColumn).ToString());*/
 
                         primaryContactEmployee.AddJobToNotify(jobNumber, jobName, customerNumber, customerName);
 
@@ -233,10 +232,15 @@ namespace JUST.NewJobNotifier
                         }
                     }
 
+                    log.Info(" Live/Debug Email Block ");
+                    log.Info(" Mode: " + Mode.ToString());
                     if ((Mode == live) || (Mode == monitor))
                     {
+                        log.Info(" Mode: " + Mode.ToString());
                         foreach (var emp in EmployeeEmailAddresses)
                         {
+                            log.Info(" emp: " + emp.Name + ", " + emp.EmailAddress);
+                            log.Info(" emp.NewJobs: " + emp.NewJobs.Count());
                             if (emp.NewJobs.Count > 0)
                             {
                                 var message = MessageBodyFormat;
@@ -253,8 +257,9 @@ namespace JUST.NewJobNotifier
                                 {
                                     foreach (var job in emp.NewJobs)
                                     {
-                                        if (!notifiedlist.Contains(job))
+                                        if (!notifiedlist.Contains(job.JobNumber))
                                         {
+                                            log.Info(" job '" + job.JobNumber + "' not found in notifiedList");
                                             notifiedlist.Add(job.JobNumber);
                                         }
                                     }
@@ -271,7 +276,6 @@ namespace JUST.NewJobNotifier
                         var excutiveMessage = MessageBodyFormat;
                         foreach (var job in executiveNewJobNotifications)
                         {
-                            log.Info(" Executive Email Notification, jobNumber: " + job);
                             excutiveMessage += string.Format(messageBodyTableItem, job.CustomerNumber, job.CustomerName, job.JobNumber, job.JobName);
                         }
 
@@ -283,9 +287,8 @@ namespace JUST.NewJobNotifier
                             {
                                 foreach (var job in executiveNewJobNotifications)
                                 {
-                                    if (!notifiedlist.Contains(job))
+                                    if (!notifiedlist.Contains(job.JobNumber))
                                     {
-                                        log.Info(" job '" + job + "' not found in notifiedList");
                                         notifiedlist.Add(job.JobNumber);
                                     }
                                 }
@@ -301,7 +304,7 @@ namespace JUST.NewJobNotifier
                 foreach (var jobNum in notifiedlist)
                 {
                     log.Info("update job " + jobNum + " as notified");
-/*                    try
+                    try
                     {
                         var updateCommand = string.Format("update jcjob set \"user_10\" = 1 where jcjob.jobnum = '{0}'", jobNum);
                         cmd = new OdbcCommand(updateCommand, cn);
@@ -311,7 +314,6 @@ namespace JUST.NewJobNotifier
                     {
                         log.Error(String.Format("[ProcessNewJobsData] Error updating Job Number {0} to be Notified: {1}", jobNum, x.Message));
                     }
-                    */
                 }
 
                 reader.Close();
@@ -379,7 +381,7 @@ namespace JUST.NewJobNotifier
 
             return emailBody;
         }
-
+        /*
         private static void NotifyEmployee(ArrayList notifiedlist, string poNum, string employeeEmailAddress, string receivedBy, string bin, string emailSubject, string emailBody)
         {
             try
@@ -402,7 +404,7 @@ namespace JUST.NewJobNotifier
                 log.Info("  [NotifyEmployee] Error " + ex.Message);
             }
         }
-
+        */
         private static bool sendEmail(string toEmailAddress, string subject, string emailBody)
         {
             bool result = true;
@@ -414,7 +416,7 @@ namespace JUST.NewJobNotifier
 
             log.Info("  [sendEmail] Sending Email to: " + toEmailAddress);
             log.Info("  [sendEmail] EmailMessage: " + emailBody);
-            return true;
+
             try
             {
                 using (MailMessage mail = new MailMessage())
