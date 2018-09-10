@@ -1,4 +1,4 @@
-﻿Version:  1.00
+﻿Version:  1.0.1.0
 
 What is this?
 -------------
@@ -88,3 +88,6 @@ Blank app.config
 History
 -------
 1.00 - Initial go-live delivery.
+1.0.1.0 - Change versioning.  
+          Add Work Order notifications
+
